@@ -6,6 +6,9 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import jpty.JPty;
+import jpty.Pty;
+
 public class TerminalProxy {
     public static void main(String[] args) throws Exception {
         try {
@@ -16,7 +19,10 @@ public class TerminalProxy {
     }
 
     private static void safeMain() throws Exception {
-        Process bash = new ProcessBuilder("/bin/bash", "-i").start();
+        String[] command = new String[] { "/bin/bash", "-i" };
+        String[] environment = new String[0];
+
+        Pty bash = JPty.execInPTY(command[0], command, environment);
         InputStream bashInputStream = bash.getInputStream();
         OutputStream bashOutputStream = bash.getOutputStream();
 
