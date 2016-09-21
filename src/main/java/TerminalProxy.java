@@ -20,7 +20,7 @@ public class TerminalProxy {
 
     private static void safeMain() throws Exception {
         String[] command = new String[] { "/bin/bash", "-i" };
-        String[] environment = new String[0];
+        String[] environment = new String[] { "TERM=xterm" };
 
         Pty bash = JPty.execInPTY(command[0], command, environment);
         InputStream bashInputStream = bash.getInputStream();
