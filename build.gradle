@@ -10,10 +10,7 @@ distributions {
 
 repositories {
     mavenCentral()
-
-    maven {
-        url '/localm2/repo'
-    }
+    mavenLocal()
 
     maven {
         url 'http://www.sparetimelabs.com/maven2'
