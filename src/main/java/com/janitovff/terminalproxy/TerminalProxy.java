@@ -4,7 +4,10 @@ import java.io.InputStreamReader;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.io.Reader;
+import java.io.Writer;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -15,9 +18,11 @@ import jpty.JPty;
 import jpty.Pty;
 import jpty.WinSize;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 public class TerminalProxy {
-    private static final int CMD_KEY = 1;
-    private static final int CMD_RESIZE = 2;
+    private static final char CMD_KEY = 'k';
+    private static final char CMD_RESIZE = 'r';
 
     private interface UnsafeRunnable {
         void run() throws IOException;
@@ -39,14 +44,20 @@ public class TerminalProxy {
         InputStream bashInputStream = bash.getInputStream();
         OutputStream bashOutputStream = bash.getOutputStream();
 
-        PrintWriter writer = new PrintWriter(bashOutputStream);
-        InputStreamReader reader = new InputStreamReader(bashInputStream);
+        Writer bashWriter = new OutputStreamWriter(bashOutputStream, UTF_8);
+        Reader bashReader = new InputStreamReader(bashInputStream, UTF_8);
 
         ServerSocket listener = new ServerSocket(15100);
         Socket socket = listener.accept();
 
-        handleReceivedData(bash, socket.getInputStream(), bashOutputStream);
-        handleConsoleData(bashInputStream, socket.getOutputStream());
+        InputStream socketInputStream = socket.getInputStream();
+        OutputStream socketOutputStream = socket.getOutputStream();
+
+        Writer socketWriter = new OutputStreamWriter(socketOutputStream, UTF_8);
+        Reader socketReader = new InputStreamReader(socketInputStream, UTF_8);
+
+        handleReceivedData(bash, socketReader, bashWriter);
+        handleConsoleData(bashReader, socketWriter);
 
         bash.waitFor();
     }
@@ -83,20 +94,19 @@ public class TerminalProxy {
         environmentVariables.put("TERM", "xterm");
     }
 
-    private static void handleReceivedData(Pty terminal, InputStream dataIn,
-            OutputStream consoleOut) {
+    private static void handleReceivedData(Pty terminal, Reader dataIn,
+            Writer consoleOut) {
         handleData(() -> handleReceivedCommands(terminal, dataIn, consoleOut));
     }
 
-    private static void handleReceivedCommands(Pty terminal,
-            InputStream commandIn, OutputStream consoleOut)
-            throws IOException {
+    private static void handleReceivedCommands(Pty terminal, Reader commandIn,
+            Writer consoleOut) throws IOException {
         int command = commandIn.read();
 
         while (command >= 0) {
             switch (command) {
                 case CMD_KEY:
-                    forwardByte(commandIn, consoleOut);
+                    forwardChar(commandIn, consoleOut);
                     break;
                 case CMD_RESIZE:
                     resizeTerminal(commandIn, terminal);
@@ -107,8 +117,7 @@ public class TerminalProxy {
         }
     }
 
-    private static void forwardByte(InputStream in, OutputStream out)
-            throws IOException {
+    private static void forwardChar(Reader in, Writer out) throws IOException {
         int data = in.read();
 
         if (data >= 0) {
@@ -117,36 +126,16 @@ public class TerminalProxy {
         }
     }
 
-    private static void resizeTerminal(InputStream in, Pty terminal)
+    private static void resizeTerminal(Reader in, Pty terminal)
             throws IOException {
-        short columns = readShortIntFrom(in);
-        short rows = readShortIntFrom(in);
+        short columns = (short)Base64Reader.readIntFrom(in);
+        short rows = (short)Base64Reader.readIntFrom(in);
 
         terminal.setWinSize(new WinSize(columns, rows));
     }
 
-    private static short readShortIntFrom(InputStream in) throws IOException {
-        short value = 0;
-        int data = in.read();
 
-        if (data < 0)
-            throw new IOException("Expected a short value");
-
-        value |= data;
-        value <<= 8;
-
-        data = in.read();
-
-        if (data < 0)
-            throw new IOException("Incomplete short value");
-
-        value |= data;
-
-        return value;
-    }
-
-    private static void handleConsoleData(InputStream consoleIn,
-            OutputStream dataOut) {
+    private static void handleConsoleData(Reader consoleIn, Writer dataOut) {
         handleData(() -> forwardData(consoleIn, dataOut));
     }
 
@@ -162,7 +151,6 @@ public class TerminalProxy {
         }
     }
 
-    private static void forwardData(InputStream in, OutputStream out)
             throws IOException {
         int data = in.read();
 
