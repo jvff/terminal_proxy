@@ -1,6 +1,6 @@
 apply plugin: 'application'
 
-mainClassName = "TerminalProxy"
+mainClassName = "com.janitovff.terminalproxy.TerminalProxy"
 
 distributions {
     main {
