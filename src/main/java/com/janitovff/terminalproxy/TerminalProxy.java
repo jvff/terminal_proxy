@@ -37,15 +37,14 @@ public class TerminalProxy {
         bash.setEnvironmentVariable("TERM", "xterm");
         bash.start();
 
-        ServerSocket listener = new ServerSocket(15100);
-        Socket socket = listener.accept();
+        Server server = new Server(15100);
 
-        InputStream socketInputStream = socket.getInputStream();
+        InputStream socketInputStream = server.getInputStream();
         Reader socketReader = new InputStreamReader(socketInputStream, UTF_8);
 
         handleReceivedData(bash, socketReader);
 
-        bash.forwardOutputTo(socket.getOutputStream());
+        bash.forwardOutputTo(server.getOutputStream());
         bash.join();
     }
 
