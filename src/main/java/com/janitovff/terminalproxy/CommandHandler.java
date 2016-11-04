@@ -4,7 +4,7 @@ import java.io.InputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 
-public class ConnectionHandler {
+public class CommandHandler {
     private static final char CMD_KEY = 'k';
     private static final char CMD_RESIZE = 'r';
     private static final char CMD_UPLOAD = 'u';
@@ -12,7 +12,7 @@ public class ConnectionHandler {
     private BashTerminal bash;
     private CommandStream commandStream;
 
-    public ConnectionHandler(BashTerminal bash, InputStream connectionStream) {
+    public CommandHandler(BashTerminal bash, InputStream connectionStream) {
         this.bash = bash;
 
         commandStream = new CommandStream(connectionStream);
