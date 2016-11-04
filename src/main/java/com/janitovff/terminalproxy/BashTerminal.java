@@ -1,9 +1,9 @@
 package com.janitovff.terminalproxy;
 
-import java.io.InputStreamReader;
+import java.io.InputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.Reader;
 import java.io.Writer;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -14,10 +14,12 @@ import jpty.WinSize;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import static org.apache.commons.io.IOUtils.copyLarge;
+
 public class BashTerminal {
     Map<String, String> environmentVariables;
     Pty tty;
-    Reader ttyReader;
+    InputStream ttyInputStream;
     Writer ttyWriter;
 
     Thread forwarder;
@@ -44,7 +46,7 @@ public class BashTerminal {
 
         tty = JPty.execInPTY(command[0], command, environment);
 
-        ttyReader = new InputStreamReader(tty.getInputStream(), UTF_8);
+        ttyInputStream = tty.getInputStream();
         ttyWriter = new OutputStreamWriter(tty.getOutputStream(), UTF_8);
     }
 
@@ -77,27 +79,17 @@ public class BashTerminal {
         tty.setWinSize(new WinSize(columns, rows));
     }
 
-    public void forwardOutputTo(Writer sink) {
-        forwarder = new Thread(() -> forwarderThreadBody(sink));
+    public void forwardOutputTo(OutputStream outputStream) {
+        forwarder = new Thread(() -> forwarderThreadBody(outputStream));
         forwarder.start();
     }
 
-    private void forwarderThreadBody(Writer sink) {
+    private void forwarderThreadBody(OutputStream outputStream) {
         try {
-            forwardData(sink);
+            copyLarge(ttyInputStream, outputStream);
         } catch (IOException cause) {
             System.err.println("Failed to forward terminal output data");
             cause.printStackTrace();
-        }
-    }
-
-    private void forwardData(Writer sink) throws IOException {
-        int data = ttyReader.read();
-
-        while (data >= 0) {
-            sink.write(data);
-            sink.flush();
-            data = ttyReader.read();
         }
     }
 }

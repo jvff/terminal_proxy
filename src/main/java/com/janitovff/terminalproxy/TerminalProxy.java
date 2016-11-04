@@ -41,14 +41,11 @@ public class TerminalProxy {
         Socket socket = listener.accept();
 
         InputStream socketInputStream = socket.getInputStream();
-        OutputStream socketOutputStream = socket.getOutputStream();
-
-        Writer socketWriter = new OutputStreamWriter(socketOutputStream, UTF_8);
         Reader socketReader = new InputStreamReader(socketInputStream, UTF_8);
 
         handleReceivedData(bash, socketReader);
 
-        bash.forwardOutputTo(socketWriter);
+        bash.forwardOutputTo(socket.getOutputStream());
         bash.join();
     }
 
