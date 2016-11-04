@@ -3,17 +3,11 @@ package com.janitovff.terminalproxy;
 import java.io.InputStream;
 
 public class TerminalProxy {
-    public static void main(String[] args) throws Exception {
-        try {
-            safeMain();
-        } catch (Exception exception) {
-            exception.printStackTrace();
-        }
-    }
+    private BashTerminal bash = new BashTerminal();
+    private Server server;
 
-    private static void safeMain() throws Exception {
-        BashTerminal bash = new BashTerminal();
-        Server server = new Server(15100);
+    private void run() throws Exception {
+        server = new Server(15100);
 
         bash.setEnvironmentVariable("TERM", "xterm");
         bash.start();
@@ -25,5 +19,13 @@ public class TerminalProxy {
 
         bash.forwardOutputTo(server.getOutputStream());
         bash.join();
+    }
+
+    public static void main(String[] args) throws Exception {
+        try {
+            new TerminalProxy().run();
+        } catch (Exception exception) {
+            exception.printStackTrace();
+        }
     }
 }
