@@ -4,7 +4,7 @@ import java.io.InputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 
-public class CommandHandler {
+public class CommandHandler extends AbstractService {
     private static final char CMD_KEY = 'k';
     private static final char CMD_RESIZE = 'r';
     private static final char CMD_UPLOAD = 'u';
@@ -18,29 +18,28 @@ public class CommandHandler {
         commandStream = new CommandStream(connectionStream);
     }
 
-    public void run() {
+    protected void run() {
         try {
-            runUnsafely();
+            while (!shouldStop())
+                handleCommand();
         } catch (IOException exception) {
             System.err.println("Failed to receive commands");
             exception.printStackTrace();
         }
     }
 
-    private void runUnsafely() throws IOException {
-        while (true) {
-            char command = commandStream.readChar();
+    private void handleCommand() throws IOException {
+        char command = commandStream.readChar();
 
-            switch (command) {
-                case CMD_KEY:
-                    forwardChar();
-                    break;
-                case CMD_RESIZE:
-                    resizeTerminal();
-                    break;
-                case CMD_UPLOAD:
-                    uploadFile();
-            }
+        switch (command) {
+            case CMD_KEY:
+                forwardChar();
+                break;
+            case CMD_RESIZE:
+                resizeTerminal();
+                break;
+            case CMD_UPLOAD:
+                uploadFile();
         }
     }
 

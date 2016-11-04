@@ -18,8 +18,7 @@ public class TerminalProxy {
             OutputStream displayStream = socket.getOutputStream();
 
             CommandHandler handler = new CommandHandler(bash, commandStream);
-
-            new Thread(() -> handler.run()).start();
+            handler.start();
 
             bash.forwardOutputTo(displayStream);
         }
