@@ -19,6 +19,7 @@ import static org.apache.commons.io.IOUtils.copyLarge;
 public class BashTerminal {
     private Map<String, String> environmentVariables;
     private Pty tty;
+
     private InputStream ttyInputStream;
     private Writer ttyWriter;
 
