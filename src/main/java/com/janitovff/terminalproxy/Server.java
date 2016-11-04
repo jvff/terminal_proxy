@@ -7,7 +7,7 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-public class Server {
+public class Server extends AbstractService {
     public interface ConnectionHandler {
         void newConnection(Socket socket) throws IOException;
     }
@@ -25,13 +25,8 @@ public class Server {
         handler = connectionHandler;
     }
 
-    public void start() {
-        thread = new Thread(() -> serverLoop());
-        thread.start();
-    }
-
-    private void serverLoop() {
-        while (true)
+    protected void run() {
+        while (!shouldStop())
             listenForConnections();
     }
 
