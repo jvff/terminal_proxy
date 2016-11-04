@@ -1,23 +1,37 @@
 package com.janitovff.terminalproxy;
 
 import java.io.InputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.Socket;
+
+import com.janitovff.terminalproxy.Server.ConnectionHandler;
 
 public class TerminalProxy {
     private BashTerminal bash = new BashTerminal();
-    private Server server;
+    private Server server = new Server(15100);
+
+    private ConnectionHandler connectionHandler = new ConnectionHandler() {
+        @Override
+        public void newConnection(Socket socket) throws IOException {
+            InputStream commandStream = socket.getInputStream();
+            OutputStream displayStream = socket.getOutputStream();
+
+            CommandHandler handler = new CommandHandler(bash, commandStream);
+
+            new Thread(() -> handler.run()).start();
+
+            bash.forwardOutputTo(displayStream);
+        }
+    };
 
     private void run() throws Exception {
-        server = new Server(15100);
-
         bash.setEnvironmentVariable("TERM", "xterm");
         bash.start();
 
-        InputStream commandStream = server.getInputStream();
-        ConnectionHandler handler = new ConnectionHandler(bash, commandStream);
+        server.setConnectionHandler(connectionHandler);
+        server.start();
 
-        new Thread(() -> handler.run()).start();
-
-        bash.forwardOutputTo(server.getOutputStream());
         bash.join();
     }
 

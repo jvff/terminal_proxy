@@ -1,5 +1,6 @@
 package com.janitovff.terminalproxy;
 
+import java.io.Closeable;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -7,19 +8,76 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 public class Server {
-    private Socket socket;
-
-    public Server(int port) throws IOException {
-        ServerSocket listener = new ServerSocket(port);
-
-        socket = listener.accept();
+    public interface ConnectionHandler {
+        void newConnection(Socket socket) throws IOException;
     }
 
-    public InputStream getInputStream() throws IOException {
-        return socket.getInputStream();
+    private ConnectionHandler handler;
+    private Thread thread;
+
+    private int port;
+
+    public Server(int port) {
+        this.port = port;
     }
 
-    public OutputStream getOutputStream() throws IOException {
-        return socket.getOutputStream();
+    public void setConnectionHandler(ConnectionHandler connectionHandler) {
+        handler = connectionHandler;
+    }
+
+    public void start() {
+        thread = new Thread(() -> serverLoop());
+        thread.start();
+    }
+
+    private void serverLoop() {
+        while (true)
+            listenForConnections();
+    }
+
+    private void listenForConnections() {
+        ServerSocket listener = null;
+
+        try {
+            listener = new ServerSocket(port);
+
+            handleConnections(listener);
+        } catch (IOException cause) {
+            System.err.println("Failed to listen for connections");
+            cause.printStackTrace();
+        } finally {
+            safelyClose(listener);
+        }
+    }
+
+    private void handleConnections(ServerSocket listener) {
+        try {
+            while (true)
+                notifyNewConnection(listener.accept());
+        } catch (IOException cause) {
+            System.err.println("Failed to accept a connection");
+            cause.printStackTrace();
+        }
+    }
+
+    private void notifyNewConnection(Socket socket) {
+        try {
+            if (handler != null)
+                handler.newConnection(socket);
+        } catch (IOException cause) {
+            System.err.println("WARN: Failure to handle new connection");
+            cause.printStackTrace();
+        }
+    }
+
+    private void safelyClose(Closeable object) {
+        if (object != null) {
+            try {
+                object.close();
+            } catch (IOException exception) {
+                System.err.println("WARN: Exception while closing");
+                exception.printStackTrace();
+            }
+        }
     }
 }
