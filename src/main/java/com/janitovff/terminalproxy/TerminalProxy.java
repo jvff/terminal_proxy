@@ -10,13 +10,7 @@ import java.io.Reader;
 import java.io.Writer;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.Map;
-
-import jpty.JPty;
-import jpty.Pty;
-import jpty.WinSize;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -38,15 +32,10 @@ public class TerminalProxy {
     }
 
     private static void safeMain() throws Exception {
-        String[] command = new String[] { "/bin/bash", "-i" };
-        String[] environment = buildEnvironmentVariables();
+        BashTerminal bash = new BashTerminal();
 
-        Pty bash = JPty.execInPTY(command[0], command, environment);
-        InputStream bashInputStream = bash.getInputStream();
-        OutputStream bashOutputStream = bash.getOutputStream();
-
-        Writer bashWriter = new OutputStreamWriter(bashOutputStream, UTF_8);
-        Reader bashReader = new InputStreamReader(bashInputStream, UTF_8);
+        bash.setEnvironmentVariable("TERM", "xterm");
+        bash.start();
 
         ServerSocket listener = new ServerSocket(15100);
         Socket socket = listener.accept();
@@ -57,60 +46,27 @@ public class TerminalProxy {
         Writer socketWriter = new OutputStreamWriter(socketOutputStream, UTF_8);
         Reader socketReader = new InputStreamReader(socketInputStream, UTF_8);
 
-        handleReceivedData(bash, socketReader, bashWriter);
-        handleConsoleData(bashReader, socketWriter);
+        handleReceivedData(bash, socketReader);
 
-        bash.waitFor();
+        bash.forwardOutputTo(socketWriter);
+        bash.join();
     }
 
-    private static String[] buildEnvironmentVariables() {
-        Map<String, String> environmentVariables = getEnvironmentVariables();
-        int numberOfEnvironmentVariables = environmentVariables.size();
-        ArrayList<String> collectedVariables =
-                new ArrayList<String>(numberOfEnvironmentVariables);
-        String[] resultingArray = new String[numberOfEnvironmentVariables];
-
-        for (String variable : environmentVariables.keySet()) {
-            String value = environmentVariables.get(variable);
-
-            collectedVariables.add(variable + "=" + value);
-        }
-
-        return collectedVariables.toArray(resultingArray);
+    private static void handleReceivedData(BashTerminal bash, Reader dataIn) {
+        handleData(() -> handleReceivedCommands(bash, dataIn));
     }
 
-    private static Map<String, String> getEnvironmentVariables() {
-        Map<String, String> allVariables = new LinkedHashMap<>();
-        Map<String, String> currentVariables = System.getenv();
-
-        allVariables.putAll(currentVariables);
-
-        addCustomEnvironmentVariables(allVariables);
-
-        return allVariables;
-    }
-
-    private static void addCustomEnvironmentVariables(
-            Map<String, String> environmentVariables) {
-        environmentVariables.put("TERM", "xterm");
-    }
-
-    private static void handleReceivedData(Pty terminal, Reader dataIn,
-            Writer consoleOut) {
-        handleData(() -> handleReceivedCommands(terminal, dataIn, consoleOut));
-    }
-
-    private static void handleReceivedCommands(Pty terminal, Reader commandIn,
-            Writer consoleOut) throws IOException {
+    private static void handleReceivedCommands(BashTerminal bash,
+            Reader commandIn) throws IOException {
         int command = commandIn.read();
 
         while (command >= 0) {
             switch (command) {
                 case CMD_KEY:
-                    forwardChar(commandIn, consoleOut);
+                    forwardChar(commandIn, bash);
                     break;
                 case CMD_RESIZE:
-                    resizeTerminal(commandIn, terminal);
+                    resizeTerminal(commandIn, bash);
                     break;
                 case CMD_UPLOAD:
                     uploadFile(commandIn);
@@ -120,21 +76,20 @@ public class TerminalProxy {
         }
     }
 
-    private static void forwardChar(Reader in, Writer out) throws IOException {
+    private static void forwardChar(Reader in, BashTerminal bash)
+            throws IOException {
         int data = in.read();
 
-        if (data >= 0) {
-            out.write(data);
-            out.flush();
-        }
+        if (data >= 0)
+            bash.sendKey((char)data);
     }
 
-    private static void resizeTerminal(Reader in, Pty terminal)
+    private static void resizeTerminal(Reader in, BashTerminal bash)
             throws IOException {
         short columns = (short)Base64Reader.readIntFrom(in);
         short rows = (short)Base64Reader.readIntFrom(in);
 
-        terminal.setWinSize(new WinSize(columns, rows));
+        bash.resize(columns, rows);
     }
 
     private static void uploadFile(Reader in) throws IOException {
@@ -178,10 +133,6 @@ public class TerminalProxy {
         return chars;
     }
 
-    private static void handleConsoleData(Reader consoleIn, Writer dataOut) {
-        handleData(() -> forwardData(consoleIn, dataOut));
-    }
-
     private static void handleData(UnsafeRunnable handler) {
         new Thread(() -> safelyHandleData(handler)).start();
     }
@@ -191,16 +142,6 @@ public class TerminalProxy {
             handler.run();
         } catch (Exception exception) {
             exception.printStackTrace();
-        }
-    }
-
-    private static void forwardData(Reader in, Writer out) throws IOException {
-        int data = in.read();
-
-        while (data >= 0) {
-            out.write(data);
-            out.flush();
-            data = in.read();
         }
     }
 }
