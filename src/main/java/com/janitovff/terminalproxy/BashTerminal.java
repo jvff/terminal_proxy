@@ -17,12 +17,12 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.commons.io.IOUtils.copyLarge;
 
 public class BashTerminal {
-    Map<String, String> environmentVariables;
-    Pty tty;
-    InputStream ttyInputStream;
-    Writer ttyWriter;
+    private Map<String, String> environmentVariables;
+    private Pty tty;
+    private InputStream ttyInputStream;
+    private Writer ttyWriter;
 
-    Thread forwarder;
+    private Thread forwarder;
 
     public BashTerminal() {
         environmentVariables = new LinkedHashMap<String, String>();
