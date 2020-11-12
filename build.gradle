@@ -13,11 +13,11 @@ repositories {
     mavenLocal()
 
     maven {
-        url 'http://www.sparetimelabs.com/maven2'
+        url 'https://dl.bintray.com/jetbrains/pty4j/'
     }
 }
 
 dependencies {
-    compile 'com.github.jawi:jpty:0.1.1'
     compile 'commons-io:commons-io:2.5'
+    compile 'org.jetbrains.pty4j:pty4j:0.10.0'
 }

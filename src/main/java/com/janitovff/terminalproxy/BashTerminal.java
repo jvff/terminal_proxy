@@ -8,9 +8,8 @@ import java.io.Writer;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import jpty.JPty;
-import jpty.Pty;
-import jpty.WinSize;
+import com.pty4j.PtyProcess;
+import com.pty4j.WinSize;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -18,7 +17,7 @@ import static org.apache.commons.io.IOUtils.copyLarge;
 
 public class BashTerminal {
     private Map<String, String> environmentVariables;
-    private Pty tty;
+    private PtyProcess tty;
 
     private InputStream ttyInputStream;
     private Writer ttyWriter;
@@ -41,11 +40,10 @@ public class BashTerminal {
         environmentVariables.put(name, value);
     }
 
-    public void start() {
+    public void start() throws IOException {
         String[] command = new String[] { "/bin/bash", "-i" };
-        String[] environment = collectEnvironmentVariables();
 
-        tty = JPty.execInPTY(command[0], command, environment);
+        tty = PtyProcess.exec(command, environmentVariables);
 
         ttyInputStream = tty.getInputStream();
         ttyWriter = new OutputStreamWriter(tty.getOutputStream(), UTF_8);
